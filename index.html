@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI Roast My GitHub — 你的程序员人格鉴定</title>
+<meta name="description" content="输入 GitHub 用户名，从公开数据里给你做一次体检，并顺便羞辱你。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+<style>
+:root{
+  --paper:#f4f2ed;
+  --card:#ffffff;
+  --ink:#14110f;
+  --ink-2:#4a443e;
+  --muted:#8b837a;
+  --line:#e2ddd3;
+  --red:#e0362c;
+  --green:#1a9e4b;
+  --amber:#e0932c;
+  --yellow:#f2c14e;
+  --blue:#2b5fd9;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;overflow-x:clip}
+body{
+  font-family:var(--sans);
+  background-color:var(--paper);
+  background-image:radial-gradient(#ddd7cb 1px,transparent 1px);
+  background-size:18px 18px;
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.6;
+  min-height:100vh;
+}
+.wrap{max-width:840px;margin:0 auto;padding:40px 20px 80px}
+
+/* ---------- header ---------- */
+.hero{text-align:center;margin-bottom:26px}
+.kicker{
+  display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:.22em;
+  text-transform:uppercase;background:var(--ink);color:var(--paper);padding:5px 12px;margin-bottom:18px;
+}
+h1{
+  font-size:clamp(30px,7.4vw,54px);line-height:1.02;margin:0 0 14px;
+  letter-spacing:-.03em;font-weight:900;
+}
+h1 .roast{color:var(--red);position:relative;white-space:nowrap}
+h1 .roast::after{
+  content:"";position:absolute;left:-2%;right:-2%;bottom:.08em;height:.14em;
+  background:var(--red);opacity:.85;transform:rotate(-1.2deg);
+}
+.sub{color:var(--ink-2);font-size:15px;max-width:560px;margin:0 auto}
+.sub b{background:var(--yellow);padding:1px 5px;box-shadow:2px 2px 0 rgba(20,17,15,.15)}
+
+/* ---------- search ---------- */
+.panel{
+  background:var(--card);border:2px solid var(--ink);
+  box-shadow:6px 6px 0 var(--ink);padding:20px;margin:26px 0 0;
+}
+.field{display:flex;align-items:stretch;border:2px solid var(--ink);background:#fff}
+.field .prefix{
+  font-family:var(--mono);font-size:15px;color:var(--muted);display:flex;align-items:center;
+  padding:0 2px 0 14px;white-space:nowrap;user-select:none;
+}
+.field input{
+  flex:1;min-width:0;border:0;outline:0;padding:15px 12px;font-family:var(--mono);
+  font-size:16px;color:var(--ink);background:transparent;
+}
+.field input::placeholder{color:#b8b0a6}
+.btn{
+  font-family:var(--sans);font-weight:800;font-size:15px;cursor:pointer;
+  border:2px solid var(--ink);background:var(--yellow);color:var(--ink);
+  padding:13px 22px;box-shadow:3px 3px 0 var(--ink);
+  transition:transform .06s ease,box-shadow .06s ease;white-space:nowrap;
+}
+.btn:hover{background:#f7cf68}
+.btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.btn.primary{background:var(--red);color:#fff}
+.btn.primary:hover{background:#ef4a40}
+.btn.ghost{background:#fff;box-shadow:none}
+.btn.ghost:hover{background:var(--paper)}
+.btn.sm{padding:8px 14px;font-size:13px;box-shadow:2px 2px 0 var(--ink)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+.rowline{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}
+.seg{display:flex;border:2px solid var(--ink);overflow:hidden}
+.seg button{
+  font-family:var(--sans);font-weight:700;font-size:13px;border:0;background:#fff;color:var(--ink-2);
+  padding:9px 14px;cursor:pointer;border-right:2px solid var(--ink);
+}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg button[aria-pressed="true"][data-level="nuclear"]{background:var(--red);color:#fff}
+.label{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{
+  font-family:var(--mono);font-size:12.5px;border:1.5px dashed var(--line);background:#fff;
+  color:var(--ink-2);padding:5px 10px;cursor:pointer;border-radius:2px;
+}
+.chip:hover{border-color:var(--ink);border-style:solid;color:var(--ink)}
+
+details.adv{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+details.adv summary{
+  cursor:pointer;font-family:var(--mono);font-size:12.5px;color:var(--muted);list-style:none;
+}
+details.adv summary::-webkit-details-marker{display:none}
+details.adv summary::before{content:"▸ "}
+details.adv[open] summary::before{content:"▾ "}
+details.adv p{font-size:13px;color:var(--ink-2);margin:10px 0}
+details.adv input{
+  width:100%;border:2px solid var(--line);padding:10px 12px;font-family:var(--mono);font-size:13px;
+  outline:0;background:#fcfbf9;
+}
+details.adv input:focus{border-color:var(--ink)}
+
+/* ---------- states ---------- */
+.hidden{display:none !important}
+#loading{text-align:center;padding:54px 20px}
+.spinner{
+  width:44px;height:44px;margin:0 auto 20px;border:4px solid var(--line);
+  border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loadingText{font-family:var(--mono);font-size:14px;color:var(--ink-2)}
+#loadingBar{height:6px;background:var(--line);max-width:320px;margin:18px auto 0;overflow:hidden}
+#loadingBar i{display:block;height:100%;width:0;background:var(--red);transition:width .4s ease}
+
+.error{
+  border:2px solid var(--red);background:#fff5f4;padding:18px 20px;margin-top:26px;
+  box-shadow:5px 5px 0 var(--red);
+}
+.error h3{margin:0 0 8px;font-size:16px;color:var(--red)}
+.error p{margin:0 0 6px;font-size:14px;color:var(--ink-2)}
+.error code{font-family:var(--mono);font-size:12.5px;background:#fff;padding:2px 6px;border:1px solid var(--line)}
+
+/* ---------- report ---------- */
+#report{margin-top:30px;position:relative}
+.card{
+  background:var(--card);border:2px solid var(--ink);box-shadow:8px 8px 0 var(--ink);
+  padding:30px 24px 26px;position:relative;
+}
+.stamp{
+  position:absolute;top:-16px;right:12px;transform:rotate(11deg);
+  font-family:var(--mono);font-weight:800;font-size:19px;letter-spacing:.14em;
+  color:var(--red);border:3px solid var(--red);padding:4px 12px;background:var(--paper);
+  animation:stampIn .45s cubic-bezier(.2,1.6,.5,1) both;transform-origin:center;
+}
+@keyframes stampIn{from{transform:rotate(11deg) scale(1.6);opacity:0}to{transform:rotate(11deg) scale(1);opacity:1}}
+
+.rpt-head{display:flex;gap:16px;align-items:flex-start;padding-bottom:16px;border-bottom:2px dashed var(--ink);flex-wrap:wrap}
+.avatar{
+  width:76px;height:76px;border:2px solid var(--ink);background:var(--paper);flex:none;
+  object-fit:cover;box-shadow:3px 3px 0 var(--ink);
+}
+.rpt-id{flex:1;min-width:180px}
+.rpt-title{font-size:23px;font-weight:900;letter-spacing:-.02em;margin:0 0 3px;line-height:1.2}
+.rpt-login{font-family:var(--mono);font-size:13px;color:var(--muted);margin:0 0 6px}
+.rpt-bio{font-size:13.5px;color:var(--ink-2);margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:9px;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:700}
+
+.section{margin-top:26px}
+.section h2{
+  font-size:14px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;
+  margin:0 0 14px;padding-bottom:7px;border-bottom:2px solid var(--ink);display:flex;
+  justify-content:space-between;align-items:baseline;gap:10px;
+}
+.section h2 span{font-family:var(--sans);font-size:11.5px;letter-spacing:0;text-transform:none;color:var(--muted);font-weight:500}
+
+/* metric rows */
+.metric{
+  display:grid;grid-template-columns:112px 1fr 58px;gap:12px;align-items:center;
+  padding:11px 0;border-bottom:1px solid var(--line);
+}
+.metric:last-child{border-bottom:0}
+.metric .mname{font-size:14px;font-weight:700;white-space:nowrap}
+.metric .mbar{
+  font-family:var(--mono);font-size:17px;letter-spacing:1px;line-height:1;
+  white-space:nowrap;overflow:hidden;
+}
+.metric .mval{font-family:var(--mono);font-size:15px;font-weight:700;text-align:right}
+.metric .mnote{
+  grid-column:2 / span 2;font-size:12.5px;color:var(--muted);margin-top:-4px;
+}
+.c-good{color:var(--green)} .c-mid{color:var(--amber)} .c-bad{color:var(--red)}
+
+/* callout */
+.callout{
+  border:2px solid var(--ink);background:#fffdf5;padding:18px 20px;box-shadow:4px 4px 0 var(--ink);
+}
+.callout h3{margin:0 0 10px;font-size:17px;font-weight:900}
+.callout p{margin:0 0 10px;font-size:14.5px;color:var(--ink-2)}
+.callout p:last-child{margin-bottom:0}
+.callout .hl{background:var(--yellow);padding:1px 5px;font-weight:700;color:var(--ink);box-shadow:2px 2px 0 rgba(20,17,15,.12)}
+
+.roastlist{margin:0;padding:0;list-style:none}
+.roastlist li{
+  position:relative;padding:10px 0 10px 26px;border-bottom:1px solid var(--line);
+  font-size:14.5px;color:var(--ink-2);
+}
+.roastlist li:last-child{border-bottom:0}
+.roastlist li::before{content:"▸";position:absolute;left:6px;color:var(--red);font-weight:800}
+.roastlist li.nuke{
+  background:#fff5f4;border-left:3px solid var(--red);padding-left:24px;margin-left:-3px;color:var(--ink);
+}
+.roastlist li.nuke::before{content:"☢";left:5px}
+
+/* persona */
+.persona{border:2px solid var(--ink);background:var(--ink);color:#fff;padding:22px;box-shadow:5px 5px 0 var(--red)}
+.persona .ptop{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.persona .pemoji{font-size:38px;line-height:1}
+.persona .pname{font-size:24px;font-weight:900;letter-spacing:-.02em}
+.persona .ptag{font-size:13.5px;color:#c9c3ba;margin:8px 0 0;font-style:italic}
+.persona .ptype{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--yellow);margin:0 0 2px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:18px}
+.pgrid h4{
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  margin:0 0 8px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.22);
+}
+.pgrid h4.s{color:#7ee2a1} .pgrid h4.w{color:#ff8a80}
+.pgrid ul{margin:0;padding-left:16px;font-size:13.5px;color:#ded8d0}
+.pgrid li{margin-bottom:5px}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+.stat{border:1.5px solid var(--line);background:#fff;padding:11px 12px}
+.stat .k{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.stat .v{font-family:var(--mono);font-size:19px;font-weight:700;margin-top:3px;line-height:1.2;word-break:break-all}
+.stat .v small{font-size:11px;color:var(--muted);font-weight:400}
+
+.langrow{display:grid;grid-template-columns:104px 1fr 42px;gap:10px;align-items:center;padding:6px 0;font-size:13px}
+.langrow .lbar{font-family:var(--mono);font-size:14px;letter-spacing:.5px;overflow:hidden;white-space:nowrap}
+.langrow .lval{font-family:var(--mono);font-size:12.5px;color:var(--muted);text-align:right}
+
+.suggest{margin:0;padding-left:22px;font-size:14px;color:var(--ink-2)}
+.suggest li{margin-bottom:8px}
+.suggest b{color:var(--ink)}
+
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.foot{
+  margin-top:34px;text-align:center;font-family:var(--mono);font-size:11.5px;color:var(--muted);
+  line-height:1.9;
+}
+.foot a{color:var(--ink-2)}
+.rate{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:var(--ink);color:#fff;
+  font-size:13.5px;padding:11px 20px;box-shadow:4px 4px 0 var(--red);opacity:0;pointer-events:none;
+  transition:all .25s ease;z-index:99;font-family:var(--mono);
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* 中屏：指标行改为「名称 + 分值」一行、条形图独占一行，避免标签被挤断 */
+@media(max-width:640px){
+  .wrap{padding:24px 14px 60px}
+  .panel{padding:15px}
+  .card{padding:26px 16px 22px}
+  .metric{grid-template-columns:1fr auto;gap:5px 10px;padding:12px 0}
+  .metric .mbar{grid-column:1 / span 2;font-size:16px}
+  .metric .mnote{grid-column:1 / span 2;margin-top:0}
+  .pgrid{grid-template-columns:1fr}
+  .stamp{font-size:15px;padding:3px 8px;top:-14px;right:10px}
+  .rpt-title{font-size:20px}
+}
+/* 窄屏：搜索框整体换行 */
+@media(max-width:480px){
+  .field{flex-wrap:wrap}
+  .field .prefix{padding:14px 0 0 14px;width:100%}
+  .field input{padding:10px 14px 12px;width:100%}
+  .field .btn{width:100%;border-left:0;border-top:2px solid var(--ink)}
+  h1{font-size:32px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="kicker">GitHub 公开数据 · 体检报告</div>
+    <h1>AI <span class="roast">Roast</span> My GitHub</h1>
+    <p class="sub">输入你的 GitHub 用户名，我扒一遍你的公开数据，给你打个分——<b>然后顺便羞辱你</b>。纯娱乐，不存储任何东西。</p>
+  </div>
+
+  <div class="panel">
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <span class="prefix">github.com/</span>
+        <input id="username" name="username" placeholder="你的用户名" spellcheck="false" autocapitalize="off" autocorrect="off">
+        <button class="btn primary" id="go" type="submit">开骂 🔥</button>
+      </div>
+      <div class="rowline">
+        <span class="label">火力</span>
+        <div class="seg" id="level">
+          <button type="button" data-level="mild">温和</button>
+          <button type="button" data-level="spicy" aria-pressed="true">毒舌</button>
+          <button type="button" data-level="nuclear">核弹</button>
+        </div>
+        <span class="rate" id="rateInfo"></span>
+      </div>
+
+      <div class="chips" id="chips"></div>
+
+      <details class="adv">
+        <summary>API 配额不够用？（可选）</summary>
+        <p>不填也能用，GitHub 对匿名请求限 60 次/小时，看几个人就会用完。填一个
+        <a href="https://github.com/settings/tokens/new?scopes=&description=roast" target="_blank" rel="noopener">Personal Access Token</a>
+        （不需要勾任何权限）能提到 5000 次/小时。Token 只存在你本地浏览器里。</p>
+        <input id="token" type="password" placeholder="ghp_... （留空即可）" spellcheck="false">
+      </details>
+    </form>
+  </div>
+
+  <div id="loading" class="hidden">
+    <div class="spinner"></div>
+    <div id="loadingText">正在连接 GitHub…</div>
+    <div id="loadingBar"><i></i></div>
+  </div>
+
+  <div id="error" class="error hidden"></div>
+
+  <div id="report" class="hidden"></div>
+
+  <div class="foot">
+    AI Roast My GitHub · 数据全部来自 GitHub 公开 API，纯前端运行，不经过任何服务器<br>
+    所有吐槽都是段子，你的代码其实挺好的（大概）
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   AI Roast My GitHub — 纯前端单文件
+   1) 拉数据  2) 算指标  3) 生成吐槽  4) 渲染 + 分享
+   ============================================================ */
+
+/* ---------- 1. 工具 ---------- */
+const $  = s => document.querySelector(s);
+const DAY = 86400000;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const daysAgo = iso => (Date.now() - new Date(iso).getTime()) / DAY;
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate = iso => { const d = new Date(iso); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const num = n => (n == null ? '—' : Number(n).toLocaleString('en-US'));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const median = arr => { if(!arr.length) return 0; const a = [...arr].sort((x,y)=>x-y); const m = a.length>>1; return a.length%2 ? a[m] : (a[m-1]+a[m])/2; };
+
+// 条形图（就是你贴的那套方块）
+function barGlyph(score, width){
+  width = width || 10;
+  const f = clamp(Math.round(score / 100 * width), 0, width);
+  return { fill: '█'.repeat(f), empty: '░'.repeat(width - f) };
+}
+// 中文按 2 格宽对齐
+function padLabel(s, w){
+  let len = 0;
+  for (const ch of s) len += /[\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]/.test(ch) ? 2 : 1;
+  return s + ' '.repeat(Math.max(0, w - len));
+}
+const LEVEL_NAME = { mild: '温和', spicy: '毒舌', nuclear: '核弹' };
+
+/* ---------- 2. API ---------- */
+const API = 'https://api.github.com';
+let TOKEN = localStorage.getItem('roast_token') || '';
+let RATE = { remaining: null, limit: null };
+
+async function gh(path, accept){
+  const headers = { 'Accept': accept || 'application/vnd.github+json' };
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  const res = await fetch(API + path, { headers });
+  const rem = res.headers.get('x-ratelimit-remaining');
+  if (rem !== null){ RATE.remaining = +rem; RATE.limit = +(res.headers.get('x-ratelimit-limit') || 60); drawRate(); }
+  if (!res.ok){
+    let body = null;
+    try { body = await res.json(); } catch(e){}
+    const err = new Error('GitHub API ' + res.status);
+    err.status = res.status;
+    err.body = body;
+    err.remaining = RATE.remaining;
+    err.reset = +(res.headers.get('x-ratelimit-reset') || 0);
+    throw err;
+  }
+  return res;
+}
+
+function drawRate(){
+  const el = $('#rateInfo');
+  if (!el) return;
+  if (RATE.remaining === null){ el.textContent = ''; return; }
+  el.textContent = 'API 剩余 ' + RATE.remaining + '/' + (RATE.limit || 60);
+  el.style.color = RATE.remaining <= 5 ? 'var(--red)' : '';
+}
+
+async function fetchRepos(login){
+  let out = [];
+  for (let page = 1; page <= 3; page++){
+    const arr = await (await gh('/users/' + encodeURIComponent(login) + '/repos?per_page=100&sort=pushed&type=owner&page=' + page)).json();
+    if (!Array.isArray(arr) || !arr.length) break;
+    out = out.concat(arr);
+    if (arr.length < 100) break;
+  }
+  return out;
+}
+
+async function fetchEvents(login){
+  let out = [];
+  for (let page = 1; page <= 3; page++){
+    let arr = [];
+    try { arr = await (await gh('/users/' + encodeURIComponent(login) + '/events/public?per_page=100&page=' + page)).json(); }
+    catch(e){ break; }
+    if (!Array.isArray(arr) || !arr.length) break;
+    out = out.concat(arr);
+    if (arr.length < 100) break;
+  }
+  return out;
+}
+
+// 抽样：挑最值得看的 6 个仓库去读 README
+function pickSample(repos){
+  const own = repos.filter(r => !r.fork);
+  const pool = (own.length ? own : repos).slice();
+  pool.sort((a, b) =>
+    (b.stargazers_count - a.stargazers_count) ||
+    (new Date(b.pushed_at) - new Date(a.pushed_at))
+  );
+  return pool.slice(0, 6);
+}
+
+async function collect(username){
+  const user = await (await gh('/users/' + encodeURIComponent(username))).json();
+  const repos = await fetchRepos(user.login);
+  const events = await fetchEvents(user.login);
+  const sample = pickSample(repos);
+  const readmes = {};
+  for (const r of sample){
+    try {
+      const t = await (await gh('/repos/' + encodeURIComponent(user.login) + '/' + encodeURIComponent(r.name) + '/readme', 'application/vnd.github.v3.raw')).text();
+      readmes[r.name] = t;
+    } catch(e){ readmes[r.name] = null; }
+  }
+  return { user, repos, events, sample, readmes };
+}
+
+/* ---------- 3. 分析 ---------- */
+const BUZZ = ['blazingly fast','blazing fast','seamless','robust','powerful','effortless','production-ready',
+  'out of the box','state-of-the-art','lightweight','easy to use','elegant','scalable','high-performance',
+  'modern','battle-tested','enterprise-grade','开箱即用','优雅','极致','轻量','一键','高性能','丝滑','赋能','智能化','全链路','零配置'];
+const SECTIONS = ['installation','install','usage','quick start','getting started','features','contributing',
+  'license','api','roadmap','安装','使用','特性','贡献','许可','示例','文档'];
+const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F000}-\u{1F2FF}\u{FE0F}]/gu;
+
+function scanReadme(text){
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  return {
+    len: text.length,
+    emoji: (text.match(EMOJI_RE) || []).length,
+    badges: (text.match(/img\.shields\.io|badge\.svg|badgen\.net|\/badge\//gi) || []).length,
+    headings: (text.match(/^#{1,6}[ \t]+\S/gm) || []).length,
+    codeBlocks: Math.floor((text.match(/```/g) || []).length / 2),
+    images: (text.match(/!\[[^\]]*\]\(/g) || []).length,
+    buzz: BUZZ.filter(b => lower.indexOf(b) >= 0).length,
+    sections: SECTIONS.filter(s => lower.indexOf(s) >= 0).length
+  };
+}
+
+function analyze(d){
+  const { user, repos, events, sample, readmes } = d;
+  const own   = repos.filter(r => !r.fork);
+  const forks = repos.filter(r => r.fork);
+  const pool  = own.length ? own : repos;
+
+  const totalStars = repos.reduce((s, r) => s + (r.stargazers_count || 0), 0);
+  const totalForks = repos.reduce((s, r) => s + (r.forks_count || 0), 0);
+  const zombie = pool.filter(r => daysAgo(r.pushed_at) > 365);
+
+  /* --- 3.1 活跃度 --- */
+  const lastPushDays = pool.length ? Math.min.apply(null, pool.map(r => daysAgo(r.pushed_at))) : 999;
+  const lastPushScore = 100 * Math.exp(-Math.max(0, lastPushDays) / 45);
+  const activeRepoRatio = pool.length ? pool.filter(r => daysAgo(r.pushed_at) <= 90).length / pool.length : 0;
+  const pushEvts = events.filter(e => e.type === 'PushEvent');
+  const pushes30 = pushEvts.filter(e => daysAgo(e.created_at) <= 30);
+  const eventScore = clamp(pushes30.length * 5, 0, 100);
+  const activity = pool.length ? clamp(0.40 * lastPushScore + 0.30 * activeRepoRatio * 100 + 0.30 * eventScore, 0, 100) : 0;
+
+  /* --- 3.2 完成率（元数据完备 + 没弃坑） --- */
+  const completeness = r => {
+    let p = 0;
+    if (r.description && r.description.trim().length >= 10) p += 20;
+    if (r.license) p += 18;
+    if (r.homepage) p += 12;
+    if (r.topics && r.topics.length) p += 12;
+    if (r.size > 50) p += 12;
+    if (daysAgo(r.pushed_at) < 180) p += 18;
+    if (r.has_pages) p += 8;
+    return p;
+  };
+  const completion = pool.length ? pool.reduce((s, r) => s + completeness(r), 0) / pool.length : 0;
+
+  /* --- 3.3 README 质量 --- */
+  const scans = sample.map(r => scanReadme(readmes[r.name]));
+  const readmeMissing = sample.filter(r => !readmes[r.name]).length;
+  const scoreOne = t => {
+    if (!t) return 0;
+    const s = scanReadme(t);
+    return clamp(
+      clamp(s.len / 2500, 0, 1) * 25 +
+      clamp(s.headings / 5, 0, 1) * 18 +
+      clamp(s.codeBlocks / 2, 0, 1) * 18 +
+      clamp(s.badges / 3, 0, 1) * 10 +
+      clamp(s.images / 2, 0, 1) * 10 +
+      clamp(s.sections / 5, 0, 1) * 19, 0, 100);
+  };
+  const readme = sample.length ? sample.reduce((s, r) => s + scoreOne(readmes[r.name]), 0) / sample.length : 0;
+
+  /* --- 3.4 Commit 规律 --- */
+  const dayKey = ts => new Date(ts).toISOString().slice(0, 10);
+  const byDay = {};
+  pushes30.forEach(e => { const k = dayKey(new Date(e.created_at).getTime()); byDay[k] = (byDay[k] || 0) + 1; });
+  const WINDOW = 30;
+  const dayCounts = [];
+  for (let i = 0; i < WINDOW; i++){
+    const k = dayKey(Date.now() - i * DAY);
+    dayCounts.push(byDay[k] || 0);
+  }
+  const activeDays = dayCounts.filter(c => c > 0).length;
+  const mean = dayCounts.reduce((a, b) => a + b, 0) / WINDOW;
+  const sd = Math.sqrt(dayCounts.reduce((a, b) => a + (b - mean) * (b - mean), 0) / WINDOW);
+  const cv = mean > 0 ? sd / mean : 0;
+  const steady = clamp(100 - cv * 40, 0, 100);
+  const regularity = pushEvts.length ? clamp(0.65 * clamp(activeDays / WINDOW * 150, 0, 100) + 0.35 * steady, 0, 100) : 0;
+
+  /* --- 3.5 AI 味（含 10 分基础分：这年头谁不是） --- */
+  const hourHist = new Array(24).fill(0);
+  pushEvts.forEach(e => { hourHist[new Date(e.created_at).getHours()]++; });
+  const hourTotal = hourHist.reduce((a, b) => a + b, 0) || 1;
+  const nightRatio = (hourHist.slice(22, 24).reduce((a,b)=>a+b,0) + hourHist.slice(0, 5).reduce((a,b)=>a+b,0)) / hourTotal;
+  const workRatio = hourHist.slice(9, 19).reduce((a,b)=>a+b,0) / hourTotal;
+  const peakHour = hourHist.indexOf(Math.max.apply(null, hourHist));
+
+  const totalReadmeChars = scans.filter(Boolean).reduce((s, x) => s + x.len, 0) || 1;
+  const emojiTotal = scans.filter(Boolean).reduce((s, x) => s + x.emoji, 0);
+  const emojiPerK = emojiTotal / totalReadmeChars * 1000;
+  const badgeTotal = scans.filter(Boolean).reduce((s, x) => s + x.badges, 0);
+  const buzzHits = scans.filter(Boolean).reduce((s, x) => s + x.buzz, 0)
+    + pool.filter(r => r.description && BUZZ.some(b => r.description.toLowerCase().indexOf(b) >= 0)).length;
+  const structured = scans.filter(Boolean).filter(x => x.sections >= 5).length;
+  const tidy = scans.filter(Boolean).filter(x => x.headings >= 3 && x.codeBlocks >= 1).length;
+  const scanN = scans.filter(Boolean).length || 1;
+  const metaComplete = pool.length ? pool.filter(r => r.description && r.topics && r.topics.length && r.license).length / pool.length : 0;
+
+  const aiRaw =
+    clamp(emojiPerK / 6, 0, 1) * 16 +
+    clamp(buzzHits / 10, 0, 1) * 20 +
+    (structured / scanN) * 18 +
+    clamp(badgeTotal / 6, 0, 1) * 12 +
+    metaComplete * 16 +
+    (tidy / scanN) * 18;
+  const aiFlavor = clamp(aiRaw + 10, 0, 100);
+
+  /* --- 3.6 其他素材 --- */
+  const langs = {};
+  pool.forEach(r => { if (r.language) langs[r.language] = (langs[r.language] || 0) + 1; });
+  const langList = Object.keys(langs).map(k => ({ name: k, n: langs[k] })).sort((a, b) => b.n - a.n);
+  const langTotal = langList.reduce((s, l) => s + l.n, 0) || 1;
+  const topLang = langList[0] || { name: '—', n: 0 };
+
+  const lifetimes = pool
+    .filter(r => daysAgo(r.pushed_at) > 180)
+    .map(r => (new Date(r.pushed_at) - new Date(r.created_at)) / DAY)
+    .filter(d => d > 0);
+  const avgInterestDays = Math.max(1, Math.round(median(lifetimes)));
+
+  const noDesc = pool.filter(r => !r.description).length;
+  const noLicense = pool.filter(r => !r.license).length;
+  const openIssues = repos.reduce((s, r) => s + (r.open_issues_count || 0), 0);
+
+  const metrics = { activity, completion, readme, regularity, aiFlavor };
+
+  const R = {
+    user, login: user.login, name: user.name || user.login, avatar: user.avatar_url,
+    bio: user.bio, htmlUrl: user.html_url, followers: user.followers, following: user.following,
+    publicRepos: user.public_repos, createdAt: user.created_at,
+    repos, own, forks, pool, totalStars, totalForks,
+    metrics, langList, langTotal, topLang,
+    zombieCount: zombie.length, noDesc, noLicense, openIssues,
+    readmeMissing, sampleCount: sample.length,
+    lastPushDays: Math.round(lastPushDays), activeDays, pushCount: pushes30.length,
+    nightRatio, workRatio, peakHour, avgInterestDays, hourHist,
+    aiParts: { emojiTotal, badgeTotal, buzzHits, structured, scanN, emojiPerK, metaComplete, tidy },
+    truncated: repos.length >= 300
+  };
+  buildNarrative(R);
+  return R;
+}
+
+/* ---------- 4. 文案：吐槽 / 人格 / 建议 ---------- */
+function buildNarrative(R){
+  const m = R.metrics;
+  const L = state.level;
+
+  /* 4.1 吐槽条目（按优先级） */
+  // 「失去兴趣」这句话只在数字够小的时候才好笑，大了要换说法
+  const interestLine = () => {
+    const d = R.avgInterestDays;
+    if (d <= 60) return '你平均在项目第 ' + d + ' 天开始失去兴趣';
+    if (d <= 400) return '你的弃坑项目平均活了 ' + d + ' 天——撑过了新鲜感，没撑过下一个 idea';
+    return '你的弃坑项目平均活了 ' + (d / 365).toFixed(1) + ' 年——不是三分钟热度，是温水煮青蛙式的放弃';
+  };
+
+  const rules = [
+    { p: 9, cond: () => m.completion < 50 && R.pool.length >= 3,
+      mild:  () => '你开了 ' + R.pool.length + ' 个项目，完成率 ' + Math.round(m.completion) + '%。你不是在做项目，你是在收集开头。',
+      spicy: () => interestLine() + '。建议把"新建仓库"按钮抠掉。',
+      nuke:  () => '按这个节奏，你下一个项目大概也会在第 ' + Math.max(1, Math.round(R.avgInterestDays * 0.8)) + ' 天变成墓碑。' },
+
+    { p: 8, cond: () => R.zombieCount > 0,
+      mild:  () => '有 ' + R.zombieCount + ' 个仓库超过一年没动过，它们还在列表里，因为你舍不得删。',
+      spicy: () => R.zombieCount + ' 个仓库停更一年以上。README 里那句 "Work in progress" 是你对自己说的谎。',
+      nuke:  () => '其中大概有 ' + Math.max(1, Math.round(R.zombieCount / 2)) + ' 个你连它干什么的都忘了。' },
+
+    { p: 7, cond: () => R.readmeMissing > 0,
+      mild:  () => '抽样的 ' + R.sampleCount + ' 个仓库里，' + R.readmeMissing + ' 个连 README 都没有。',
+      spicy: () => '你有 ' + R.readmeMissing + ' 个仓库连 README 都没有。未来的你点进去，会以为这是别人写的代码。',
+      nuke:  () => '点进去只有一行 console.log，和三年前的你自己。' },
+
+    { p: 8, cond: () => R.lastPushDays > 14,
+      mild:  () => '最近一次 push 是 ' + R.lastPushDays + ' 天前。',
+      spicy: () => R.lastPushDays + ' 天没 push 了。你的贡献图现在像一片沙漠，唯一的绿洲是上周点了个 star。',
+      nuke:  () => R.lastPushDays + ' 天没动过代码。GitHub 已经开始给你推荐"如何重新开始"的博客了。' },
+
+    { p: 6, cond: () => R.pushCount > 0 && R.activeDays <= 10,
+      mild:  () => '最近 30 天你只有 ' + R.activeDays + ' 天在写代码。',
+      spicy: () => '你的提交记录像心电图——可惜是条直线。间歇性踌躇满志，持续性躺平。',
+      nuke:  () => '30 天里只有 ' + R.activeDays + ' 天写代码，剩下 ' + (30 - R.activeDays) + ' 天在"构思架构"。' },
+
+    { p: 7, cond: () => m.aiFlavor >= 65,
+      mild:  () => 'AI 味检测 ' + Math.round(m.aiFlavor) + '%，你的 README 结构非常规范。',
+      spicy: () => '你的 README 里有 ' + R.aiParts.emojiTotal + ' 个 emoji、' + R.aiParts.badgeTotal + ' 个 shields 徽章，和 0 个你自己写的句子。',
+      nuke:  () => 'Emoji 密度 ' + R.aiParts.emojiPerK.toFixed(1) + ' 个/千字。你写文档的时间，够把功能做完了。' },
+
+    { p: 5, cond: () => R.nightRatio >= 0.3 && R.pushCount >= 5,
+      mild:  () => Math.round(R.nightRatio * 100) + '% 的提交发生在深夜，注意身体。',
+      spicy: () => Math.round(R.nightRatio * 100) + '% 的代码是在凌晨写的。写的时候你觉得是天才，第二天看是犯罪现场。',
+      nuke:  () => '凌晨 ' + R.peakHour + ' 点是你效率最高的时段。建议直接把工位搬到阳台。' },
+
+    { p: 5, cond: () => R.pool.length >= 5 && R.totalStars <= 5,
+      mild:  () => R.pool.length + ' 个原创仓库，一共 ' + R.totalStars + ' 个 star。',
+      spicy: () => R.pool.length + ' 个仓库换来 ' + R.totalStars + ' 个 star，平均每个 ' + (R.totalStars / R.pool.length).toFixed(2) + ' 个。你妈可能都忘了点。',
+      nuke:  () => '平均每仓库 ' + (R.totalStars / R.pool.length).toFixed(2) + ' star。按这个速度，成为网红项目需要 ' + Math.round(500 / Math.max(0.05, R.totalStars / R.pool.length)) + ' 个仓库。' },
+
+    { p: 6, cond: () => R.forks.length >= Math.max(3, R.repos.length * 0.5),
+      mild:  () => '你有 ' + R.forks.length + ' 个仓库是 fork 来的。',
+      spicy: () => 'fork 了 ' + R.forks.length + ' 个项目，一个 PR 都没提。收藏夹吃灰的毛病从浏览器传染到 GitHub 了。',
+      nuke:  () => R.forks.length + ' 个 fork，0 个 PR。你这不是参与开源，是囤积开源。' },
+
+    { p: 4, cond: () => R.langList.length === 1 && R.pool.length >= 5,
+      mild:  () => Math.round(R.topLang.n / R.langTotal * 100) + '% 的仓库是 ' + R.topLang.name + '，很专注。',
+      spicy: () => '100% 的仓库都是 ' + R.topLang.name + '。舒适区住着挺舒服吧？',
+      nuke:  () => '全是 ' + R.topLang.name + '。建议把简历上的"技术栈广泛"删掉。' },
+
+    { p: 7, cond: () => R.openIssues >= 20,
+      mild:  () => '你累积了 ' + R.openIssues + ' 个未关闭的 issue / PR。',
+      spicy: () => R.openIssues + ' 个未关闭的 issue / PR。你把 issue 列表当成了许愿池——许完就不管了。',
+      nuke:  () => R.openIssues + ' 个待处理项。按你最近的速度，清完需要 ' + Math.max(1, Math.round(R.openIssues / Math.max(0.5, R.pushCount / 30))) + ' 个月。' },
+
+    { p: 6, cond: () => m.readme < 45 && R.readmeMissing === 0 && R.sampleCount > 0,
+      mild:  () => 'README 质量 ' + Math.round(m.readme) + ' 分，写得比较简略。',
+      spicy: () => 'README 质量 ' + Math.round(m.readme) + ' 分。你的文档像一份保密协议：字都在，但没人看得懂。',
+      nuke:  () => 'README 平均 ' + Math.round(m.readme) + ' 分。你在文档上的投入，约等于你在代码里写的那些 TODO。' },
+
+    { p: 6, cond: () => R.noLicense > 0 && R.pool.length >= 2,
+      mild:  () => R.noLicense + ' 个仓库没写 License。',
+      spicy: () => R.noLicense + ' 个仓库没写 License。别人想用你的代码，得先猜你是不是允许。',
+      nuke:  () => R.noLicense + ' 个仓库没有 License，等于给代码挂了块"后果自负"的牌子。' },
+
+    { p: 5, cond: () => m.aiFlavor < 35 && R.aiParts.scanN > 0,
+      mild:  () => 'AI 味只有 ' + Math.round(m.aiFlavor) + '%，很有人味。',
+      spicy: () => 'AI 味只有 ' + Math.round(m.aiFlavor) + '%。你的 README 是纯手工的，排版风格停留在 2013 年的邮件列表。',
+      nuke:  () => 'AI 味 ' + Math.round(m.aiFlavor) + '%。在一个人人都让 AI 写 README 的年代你坚持手写——这份倔强很动人，可惜没人看。' },
+
+    { p: 5, cond: () => R.pool.length > 0 && R.pool.length <= 4 && R.totalStars >= 50,
+      mild:  () => '只有 ' + R.pool.length + ' 个仓库，但攒到了 ' + R.totalStars + ' 个 star。',
+      spicy: () => R.pool.length + ' 个仓库换来 ' + R.totalStars + ' 个 star。你不是高产型选手，你是把鸡蛋全放一个篮子里。',
+      nuke:  () => '平均每个仓库 ' + Math.round(R.totalStars / R.pool.length) + ' star，剩下的 ' + (R.pool.length - 1) + ' 个基本是添头。' },
+
+    { p: 4, cond: () => R.langList.length >= 2 && R.topLang.n / R.langTotal >= 0.7 && R.pool.length >= 5,
+      mild:  () => Math.round(R.topLang.n / R.langTotal * 100) + '% 的仓库是 ' + R.topLang.name + '。',
+      spicy: () => Math.round(R.topLang.n / R.langTotal * 100) + '% 的仓库是 ' + R.topLang.name + '。技术栈稳定得像化石，学个新语言比换工作还难。',
+      nuke:  () => '简历上写"技术栈广泛"的时候，请参考这 ' + Math.round(R.topLang.n / R.langTotal * 100) + '%。' },
+
+    { p: 4, cond: () => R.noDesc > 0,
+      mild:  () => '有 ' + R.noDesc + ' 个仓库没写简介。',
+      spicy: () => R.noDesc + ' 个仓库连一句话简介都没有。你自己都懒得解释的项目，凭什么让别人点开。',
+      nuke:  () => R.noDesc + ' 个仓库没有简介。它们存在的意义，是让你的贡献图看起来更满。' },
+
+    { p: 3, cond: () => R.followers <= 3,
+      mild:  () => R.followers + ' 个关注者，慢慢来。',
+      spicy: () => R.followers + ' 个 follower。其中 ' + Math.max(0, R.followers - 1) + ' 个是互关的，剩下那个是你小号。',
+      nuke:  () => R.followers + ' 个 follower，还在坚持日更。这个毅力用在项目上早就火了。' },
+
+    { p: 3, cond: () => daysAgo(R.createdAt) < 400,
+      mild:  () => '账号注册于 ' + fmtDate(R.createdAt) + '，还在热身。',
+      spicy: () => '账号 ' + fmtDate(R.createdAt) + ' 才注册。你正在经历每个程序员都有的"我要好好经营 GitHub"幻觉期。',
+      nuke:  () => '注册于 ' + fmtDate(R.createdAt) + '。这个号目前的全部历史意义，是让你在简历上多了一行链接。' },
+
+    { p: 2, cond: () => R.workRatio >= 0.5 && R.pushCount >= 10,
+      mild:  () => '大部分提交发生在工作时段。',
+      spicy:  () => Math.round(R.workRatio * 100) + '% 的提交在 9-18 点之间。上班时间写开源，老板知道吗？',
+      nuke:  () => Math.round(R.workRatio * 100) + '% 的提交集中在工作时段，且峰值在 ' + R.peakHour + ' 点——那是你的"开会摸鱼窗口"。' },
+
+    { p: 2, cond: () => R.pool.length === 0,
+      mild:  () => '你还没有原创仓库。',
+      spicy:  () => '你注册 GitHub 的全部活动，就是给别人的项目点 star。',
+      nuke:  () => '零个原创仓库。你在 GitHub 上的身份是"观众"。' }
+  ];
+
+  const fired = rules.filter(r => r.cond()).sort((a, b) => b.p - a.p).slice(0, 5);
+  R.roasts = fired.map(r => {
+    if (L === 'mild') return { text: r.mild(), nuke: false, extra: null };
+    return { text: r.spicy(), nuke: false, extra: (L === 'nuclear' && r.nuke) ? r.nuke() : null };
+  });
+  // 兜底：保证吐槽条数够看，否则报告显得很干
+  const MIN_ROASTS = L === 'mild' ? 3 : 4;
+  const FILLERS = [
+    { cond: () => R.pool.length > 0,
+      text: () => '你在 GitHub 上一共留下 ' + R.pool.length + ' 个仓库、' + R.totalStars + ' 个 star——数量级说明你确实动过手。' },
+    { cond: () => R.following > 0,
+      text: () => '你关注了 ' + R.following + ' 个人，被 ' + R.followers + ' 个人关注。关注比 ' + (R.followers / Math.max(1, R.following)).toFixed(2) + '，有点失衡。' },
+    { cond: () => R.pool.length > 0,
+      text: () => '最近 30 天 ' + R.pushCount + ' 次提交，平均每天 ' + (R.pushCount / 30).toFixed(2) + ' 次。四舍五入等于偶尔。' },
+    { cond: () => R.pool.length > 0,
+      text: () => '你的主力语言是 ' + R.topLang.name + '，说明至少有一门手艺还没丢。' },
+    { cond: () => R.pool.length > 0,
+      text: () => '注册 ' + Math.max(1, Math.round(daysAgo(R.createdAt) / 365)) + ' 年，产出 ' + R.pool.length + ' 个仓库，平均每年 ' + (R.pool.length / Math.max(1, daysAgo(R.createdAt) / 365)).toFixed(1) + ' 个。' }
+  ];
+  for (const f of FILLERS){
+    if (R.roasts.length >= MIN_ROASTS) break;
+    if (f.cond()) R.roasts.push({ text: f.text(), nuke: false, extra: null });
+  }
+
+  // 核弹模式：额外追加一条专属暴击
+  if (L === 'nuclear'){
+    R.roasts.push({
+      text: R.pool.length + ' 个仓库、' + R.totalStars + ' 个 star、' + Math.round(m.completion) + '% 完成率。'
+            + '把你的 GitHub 和"我很努力"这句话放在一起看，有点幽默。',
+      nuke: true
+    });
+  }
+  if (!R.roasts.length){
+    R.roasts = [{ text: '数据太干净了，我居然一时找不到槽点。', nuke: false }];
+  }
+
+  /* 4.2 最大的代码问题 */
+  const keys = ['activity', 'completion', 'readme', 'regularity'];
+  let worst = keys[0];
+  keys.forEach(k => { if (m[k] < m[worst]) worst = k; });
+  R.worstKey = worst;
+  const allGood = keys.every(k => m[k] >= 72);
+
+  const PROBLEMS = {
+    activity: {
+      t: '你的仓库正在慢慢变成化石',
+      mild: '最近一次提交在 ' + R.lastPushDays + ' 天前，最近 30 天只有 ' + R.activeDays + ' 天有 push。你还在关心技术，只是不动手。',
+      spicy: '最近一次提交在 ' + R.lastPushDays + ' 天前，最近 30 天只有 ' + R.activeDays + ' 天有 push。你的 GitHub 现在的主要功能是让别人以为你很忙。'
+    },
+    completion: {
+      t: '你最大的问题是：开坑的速度远大于填坑的速度',
+      mild: '项目开了 ' + R.pool.length + ' 个，完成率只有 ' + Math.round(m.completion) + '%。' + interestLine() + '。',
+      spicy: '项目开了 ' + R.pool.length + ' 个，完成率只有 ' + Math.round(m.completion) + '%。' + interestLine() +
+             (R.avgInterestDays <= 60 ? '——比大多数人看完一部剧的时间还短。' : '。')
+    },
+    readme: {
+      t: '你写代码给别人看，但没写文档给任何人看',
+      mild: '抽样 ' + R.sampleCount + ' 个仓库，README 质量 ' + Math.round(m.readme) + ' 分，其中 ' + R.readmeMissing + ' 个仓库压根没有 README。',
+      spicy: '抽样 ' + R.sampleCount + ' 个仓库，README 质量 ' + Math.round(m.readme) + ' 分。你的项目对世界的态度是：代码给你了，自己猜怎么跑。'
+    },
+    regularity: {
+      t: R.pushCount === 0 ? '公开动态里看不到你的提交' : '你的提交记录不是习惯，是事故',
+      mild: R.pushCount === 0
+        ? '最近 30 天，GitHub 公开动态里没有你的任何提交记录。'
+        : '最近 30 天只有 ' + R.activeDays + ' 天有提交，规律性 ' + Math.round(m.regularity) + ' 分。你是靠灵感写代码的。',
+      spicy: R.pushCount === 0
+        ? '最近 30 天公开动态里 0 次提交。要么你在私有仓库里闷声干大事，要么你的代码全在脑子里——两种都挺可疑。'
+        : '最近 30 天只有 ' + R.activeDays + ' 天有提交，规律性 ' + Math.round(m.regularity) + ' 分。你的工作流是：积压、爆发、再积压，循环往复。'
+    }
+  };
+  R.problem = allGood
+    ? { t: '说真的，没找到什么大问题', body: '四项核心指标都在 72 分以上。你该有的都有：持续提交、文档像样、项目不弃坑。我只能阴阳你一下——这么规律，是不是把写代码当逃避生活的方式？' }
+    : { t: PROBLEMS[worst].t, body: L === 'mild' ? PROBLEMS[worst].mild : PROBLEMS[worst].spicy };
+
+  /* 4.3 程序员人格 */
+  const P = [
+    { id: 'ghost', emoji: '👻', name: '空仓玩家', tag: '你的仓库比你的社交生活还空',
+      cond: () => R.pool.length === 0,
+      s: ['很会欣赏别人的代码', 'star 点得又快又准'], w: ['没有作品', '简历上的链接点开是空的'] },
+    { id: 'vibe', emoji: '🔥', name: 'AI Vibe Coder', tag: '我不是在写代码，我是在做提示词工程',
+      cond: () => m.aiFlavor >= 70 && m.completion < 55,
+      s: ['很敢尝试新技术', '项目启动速度快'], w: ['容易开新坑', 'README 永远最后写'] },
+    { id: 'graveyard', emoji: '🏗️', name: '项目坟场管理员', tag: '每个仓库都是一座墓碑，碑文是 TODO',
+      cond: () => R.pool.length >= 12 && m.completion < 38,
+      s: ['选题嗅觉敏锐', '动手能力不差'], w: ['完工率感人', '仓库列表像考古现场'] },
+    { id: 'collector', emoji: '⭐', name: 'Star 收藏家', tag: '你的贡献主要发生在别人的仓库里',
+      cond: () => R.forks.length >= Math.max(3, R.repos.length * 0.5),
+      s: ['信息搜集能力强', '知道什么项目值得追'], w: ['自己的仓库很少', 'fork 完就当学过'] },
+    { id: 'readme', emoji: '📚', name: 'README 美学家', tag: '代码还没写完，文档已经可以出书了',
+      cond: () => m.readme >= 68 && m.activity < 55,
+      s: ['文档意识极强', '项目可读性高'], w: ['代码追不上文档', '徽章比功能多'] },
+    { id: 'nightowl', emoji: '🦉', name: '深夜代码诗人', tag: '凌晨三点的灵感，早上八点的 bug',
+      cond: () => R.nightRatio >= 0.35 && R.pushCount >= 5,
+      s: ['夜晚专注力惊人', '灵感型选手'], w: ['作息不健康', '白天提交的全是回滚'] },
+    { id: 'sprinter', emoji: '🌪️', name: '突击型选手', tag: '平时不写，DDL 前一夜爆发',
+      cond: () => m.regularity < 40 && m.activity >= 45,
+      s: ['爆发力强', '能连续肝 12 小时'], w: ['平时完全消失', '进度全靠最后一天'] },
+    { id: 'machine', emoji: '⚙️', name: '人形 CI', tag: '你的 commit 记录比地铁时刻表还准',
+      cond: () => m.regularity >= 62 && m.activity >= 60,
+      s: ['自律到可怕', '产出稳定可预期'], w: ['偶尔需要学会休息', '提交信息可能是自动生成的'] },
+    { id: 'craftsman', emoji: '🐢', name: '沉默的工匠', tag: '仓库不多，但每个都能用',
+      cond: () => R.pool.length <= 6 && m.completion >= 62,
+      s: ['做的东西能跑', '不追热点只解决问题'], w: ['产量太低', '不会宣传自己'] },
+    { id: 'starter', emoji: '🚀', name: '启动很快的人', tag: '0 到 1 只要三天，1 到 100 要等下辈子',
+      cond: () => m.activity >= 55 && m.completion < 50,
+      s: ['行动力强', '不怕从零开始'], w: ['收尾困难', '容易被下一个 idea 带走'] },
+    { id: 'default', emoji: '🧑💻', name: '还在路上的开发者', tag: '不好也不坏，就是很真实',
+      cond: () => true,
+      s: ['各项均衡', '有真实的产出轨迹'], w: ['没有特别突出的地方', '需要一次真正的完成'] }
+  ];
+  R.persona = P.find(p => p.cond()) || P[P.length - 1];
+
+  /* 4.4 行动建议 */
+  const TIPS = {
+    activity:   '<b>设一条底线</b>：每周至少 1 次 commit。不用多，别让贡献图断成沙漠就行。',
+    completion: '<b>冻结新仓库三个月</b>：从现有的里面挑一个，做到"别人 clone 下来能跑起来"的程度，再开新的。',
+    readme:     '<b>每个仓库补 5 行 README</b>：它是什么、怎么跑、一张截图。10 分钟的事，能救未来的你。',
+    regularity: '<b>固定时段</b>：每天 30 分钟，写多少算多少。规律比强度重要，习惯比灵感可靠。',
+    aiFlavor:   '<b>删掉一半 emoji</b>：用一句话说清它解决什么问题。AI 味自然就低了，人味就上来了。'
+  };
+  const order = ['activity', 'completion', 'readme', 'regularity'].sort((a, b) => m[a] - m[b]);
+  R.tips = [TIPS[order[0]], TIPS[order[1]], TIPS[order[2]]];
+}
+
+/* ---------- 5. 渲染 ---------- */
+function scoreClass(v){ return v >= 75 ? 'c-good' : v >= 45 ? 'c-mid' : 'c-bad'; }
+function scoreWord(v){ return v >= 90 ? '离谱' : v >= 75 ? '优秀' : v >= 60 ? '及格' : v >= 40 ? '堪忧' : v >= 20 ? '危险' : '灾难'; }
+
+const METRIC_META = [
+  { key: 'activity',   name: '代码活跃度', notes: v => v >= 75 ? '最近很勤快，贡献图是绿的' : v >= 45 ? '偶尔在线，属于"想起来就写"型' : '你的仓库已经很久没见过你了' },
+  { key: 'completion', name: '项目完成率', notes: v => v >= 75 ? '大部分项目有头有尾，难得' : v >= 45 ? '一半的项目还活着，一半已经放弃' : '开坑一时爽，填坑火葬场' },
+  { key: 'readme',     name: 'README质量', notes: v => v >= 75 ? '文档齐全，别人能看懂你的项目' : v >= 45 ? 'README 写了个大概，缺示例' : 'README 基本等于没有，全靠猜' },
+  { key: 'regularity', name: 'Commit规律', notes: (v, R) => R.pushCount === 0 ? '公开动态里看不到提交（可能都在私有仓库）' : v >= 75 ? '提交节奏稳定，像上班打卡' : v >= 45 ? '时紧时松，偶尔断更几天' : '提交记录像随机事件' },
+  { key: 'aiFlavor',   name: 'AI味检测',   notes: v => v >= 75 ? '味道很浓，一看就是"现代风格"' : v >= 45 ? '有点味道，但还保留人味' : '手工痕迹明显，挺有个性' }
+];
+
+function renderReport(R){
+  const m = R.metrics;
+  const L = state.level;
+  const stampText = L === 'mild' ? 'CHECKED' : L === 'nuclear' ? 'DESTROYED' : 'ROASTED';
+
+  const metricsHTML = METRIC_META.map(meta => {
+    const v = m[meta.key];
+    const g = barGlyph(v, 10);
+    return '<div class="metric">' +
+      '<div class="mname">' + meta.name + '</div>' +
+      '<div class="mbar ' + scoreClass(v) + '"><span aria-hidden="true">' + g.fill + '</span><span style="opacity:.22">' + g.empty + '</span></div>' +
+      '<div class="mval ' + scoreClass(v) + '">' + Math.round(v) + '%</div>' +
+      '<div class="mnote">' + scoreWord(v) + ' · ' + meta.notes(v, R) + '</div>' +
+    '</div>';
+  }).join('');
+
+  const roastsHTML = R.roasts.map(r =>
+    '<li' + (r.nuke ? ' class="nuke"' : '') + '>' + esc(r.text) +
+    (r.extra ? '<br><span style="color:var(--red);font-weight:700">☢ ' + esc(r.extra) + '</span>' : '') + '</li>'
+  ).join('');
+
+  const p = R.persona;
+  const langHTML = R.langList.slice(0, 6).map(l => {
+    const pctv = l.n / R.langTotal * 100;
+    const g = barGlyph(pctv, 14);
+    return '<div class="langrow"><div>' + esc(l.name) + '</div>' +
+      '<div class="lbar" style="color:var(--ink-2)">' + g.fill + '<span style="opacity:.2">' + g.empty + '</span></div>' +
+      '<div class="lval">' + Math.round(pctv) + '%</div></div>';
+  }).join('') || '<div class="lval">没有语言数据</div>';
+
+  const stats = [
+    ['总 Star', num(R.totalStars)],
+    ['关注者', num(R.followers)],
+    ['原创仓库', R.own.length + (R.truncated ? '<small>+</small>' : '')],
+    ['Fork', R.forks.length],
+    ['僵尸项目', R.zombieCount, '>365天没动'],
+    ['主力语言', esc(R.topLang.name)],
+    ['最活跃时段', R.peakHour + ' 点'],
+    ['平均项目寿命', R.avgInterestDays + ' 天'],
+    ['最近提交', R.lastPushDays + ' 天前'],
+    ['注册于', fmtDate(R.createdAt).slice(0, 4)],
+    ['30天提交', R.pushCount + ' 次'],
+    ['深夜提交占比', Math.round(R.nightRatio * 100) + '%']
+  ].map(s => '<div class="stat"><div class="k">' + s[0] + '</div><div class="v">' + s[1] + (s[2] ? ' <small>' + s[2] + '</small>' : '') + '</div></div>').join('');
+
+  const html =
+  '<div class="card">' +
+    '<div class="stamp">' + stampText + '</div>' +
+    '<div class="rpt-head">' +
+      '<img class="avatar" src="' + esc(R.avatar) + '" alt="' + esc(R.login) + ' 的头像" crossorigin="anonymous" onerror="this.style.visibility=&quot;hidden&quot;">' +
+      '<div class="rpt-id">' +
+        '<h2 class="rpt-title">' + esc(R.name) + "'s GitHub Report</h2>" +
+        '<p class="rpt-login">@' + esc(R.login) + (R.bio ? ' · ' + esc(R.bio) : '') + '</p>' +
+        '<div class="meta">' +
+          '<span>注册 <b>' + fmtDate(R.createdAt) + '</b></span>' +
+          '<span>仓库 <b>' + num(R.publicRepos) + '</b></span>' +
+          '<span>关注者 <b>' + num(R.followers) + '</b></span>' +
+          '<span>火力 <b>' + LEVEL_NAME[L] + '</b></span>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="section">' +
+      '<h2>体检指标 <span>基于 ' + R.repos.length + ' 个仓库 / ' + R.pushCount + ' 次近期提交</span></h2>' +
+      metricsHTML +
+    '</div>' +
+
+    '<div class="section">' +
+      '<h2>💀 你最大的代码问题</h2>' +
+      '<div class="callout"><h3>' + esc(R.problem.t) + '</h3><p>' + esc(R.problem.body) + '</p></div>' +
+    '</div>' +
+
+    '<div class="section">' +
+      '<h2>更多吐槽 <span>' + LEVEL_NAME[L] + '模式</span></h2>' +
+      '<ul class="roastlist">' + roastsHTML + '</ul>' +
+    '</div>' +
+
+    '<div class="section">' +
+      '<h2>🧬 你的程序员人格</h2>' +
+      '<div class="persona">' +
+        '<div class="ptop"><span class="pemoji">' + p.emoji + '</span>' +
+          '<div><p class="ptype">Type</p><div class="pname">' + p.name + '</div></div>' +
+        '</div>' +
+        '<p class="ptag">“' + esc(p.tag) + '”</p>' +
+        '<div class="pgrid">' +
+          '<div><h4 class="s">Strength</h4><ul>' + p.s.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' +
+          '<div><h4 class="w">Weakness</h4><ul>' + p.w.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="section">' +
+      '<h2>数据速览</h2>' +
+      '<div class="stats">' + stats + '</div>' +
+    '</div>' +
+
+    '<div class="section">' +
+      '<h2>语言分布 <span>按仓库数</span></h2>' +
+      langHTML +
+    '</div>' +
+
+    '<div class="section">' +
+      '<h2>怎么治 <span>说点有用的</span></h2>' +
+      '<ul class="suggest">' + R.tips.map(t => '<li>' + t + '</li>').join('') + '</ul>' +
+    '</div>' +
+
+    '<div class="actions">' +
+      '<button class="btn" id="copyBtn" type="button">复制报告文案</button>' +
+      '<button class="btn" id="imgBtn" type="button">下载分享图</button>' +
+      '<a class="btn ghost" href="' + esc(R.htmlUrl) + '" target="_blank" rel="noopener">打开他的主页</a>' +
+      '<button class="btn ghost" id="againBtn" type="button">换个用户名</button>' +
+    '</div>' +
+  '</div>';
+
+  const el = $('#report');
+  el.innerHTML = html;
+  el.classList.remove('hidden');
+  $('#copyBtn').addEventListener('click', () => copyText(reportText(R), '报告文案已复制'));
+  $('#imgBtn').addEventListener('click', () => downloadImage(R));
+  $('#againBtn').addEventListener('click', () => {
+    el.classList.add('hidden');
+    $('#username').value = '';
+    $('#username').focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
+
+function reportText(R){
+  const m = R.metrics;
+  const g = v => { const b = barGlyph(v, 10); return b.fill + b.empty; };
+  const line = (label, v) => padLabel(label, 16) + g(v) + ' ' + Math.round(v) + '%';
+  const p = R.persona;
+
+  let t = '';
+  t += R.name + "'s GitHub Report\n";
+  t += '────────────────────\n';
+  METRIC_META.forEach(meta => { t += line(meta.name, m[meta.key]) + '\n'; });
+  t += '\n💀 你最大的代码问题：\n';
+  t += R.problem.t + '\n';
+  t += R.problem.body + '\n';
+  t += '\n更多吐槽：\n';
+  R.roasts.forEach(r => { t += '· ' + r.text + '\n'; if (r.extra) t += '  ☢ ' + r.extra + '\n'; });
+  t += '\n🧬 你的程序员人格：' + p.emoji + ' ' + p.name + '\n';
+  t += '   “' + p.tag + '”\n';
+  t += 'Strength: ' + p.s.join(' / ') + '\n';
+  t += 'Weakness: ' + p.w.join(' / ') + '\n';
+  t += '\n数据速览：' + R.pool.length + ' 个原创仓库 · ' + R.totalStars + ' star · ' +
+       R.followers + ' 关注者 · 最近提交 ' + R.lastPushDays + ' 天前 · 主力语言 ' + R.topLang.name + '\n';
+  t += '\n—— AI Roast My GitHub';
+  return t;
+}
+
+/* ---------- 6. 分享 ---------- */
+function toast(msg){
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('on'), 1900);
+}
+
+function copyText(text, okMsg){
+  const done = () => toast(okMsg || '已复制');
+  if (navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(done).catch(() => fallback());
+  } else fallback();
+  function fallback(){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch(e){ toast('复制失败，请手动选择'); }
+    document.body.removeChild(ta);
+  }
+}
+
+function wrapLines(ctx, text, maxW){
+  const out = [];
+  String(text).split('\n').forEach(par => {
+    if (!par){ out.push(''); return; }
+    let line = '';
+    for (const ch of par){
+      if (ctx.measureText(line + ch).width > maxW && line){
+        let cut = line.length;
+        const sp = line.lastIndexOf(' ');
+        if (sp > line.length * 0.5 && /[A-Za-z0-9]/.test(ch)) cut = sp + 1;
+        out.push(line.slice(0, cut).trimEnd());
+        line = line.slice(cut);
+      }
+      line += ch;
+    }
+    out.push(line);
+  });
+  return out;
+}
+
+function buildShareCanvas(R){
+    const m = R.metrics, p = R.persona;
+    const W = 1080, PAD = 76, CW = W - PAD * 2;
+    const PERSONA_H = 300;
+    const mc = document.createElement('canvas').getContext('2d');
+    const F = (w, s) => (s ? 'bold ' : '') + w + 'px ' + (s ? 'Menlo, monospace' : '-apple-system, "PingFang SC", "Helvetica Neue", sans-serif');
+    const MF = w => 'bold ' + w + 'px Menlo, monospace';
+
+    // 预先计算换行，得到总高度
+    mc.font = F(30);
+    const problemLines = wrapLines(mc, R.problem.body, CW - 60);
+    const roastLines = R.roasts.map(r => wrapLines(mc, '· ' + r.text, CW - 20));
+    const nukeLines = R.roasts.map(r => r.extra ? wrapLines(mc, '☢ ' + r.extra, CW - 40) : []);
+
+    let H = PAD + 22;                            // 起点
+    H += 56 + 74 + 46 + 40;                      // 头部：小标题 / 主标题 / 信息行 / 虚线
+    H += 5 * 74;                                 // 5 条指标
+    H += 26 + 58 + 50;                           // 「最大的问题」标题 + 小标题
+    H += problemLines.length * 42;
+    H += 40 + 52;                                // 「更多吐槽」标题
+    H += roastLines.reduce((s, l, i) => s + l.length * 42 + nukeLines[i].length * 40 + 16, 0);
+    H += 30 + 54 + PERSONA_H + 34;               // 人格卡
+    H += 46;                                     // 页脚
+    H += (PAD - 26);                             // 底部留白
+    H = Math.round(H);
+
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+
+    ctx.fillStyle = '#f4f2ed';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(PAD - 26, PAD - 26, W - (PAD - 26) * 2, H - (PAD - 26) * 2);
+    ctx.strokeStyle = '#14110f';
+    ctx.lineWidth = 5;
+    ctx.strokeRect(PAD - 26, PAD - 26, W - (PAD - 26) * 2, H - (PAD - 26) * 2);
+
+    let y = PAD + 22;
+    ctx.textBaseline = 'top';
+
+    // 标题
+    ctx.font = MF(24);
+    ctx.fillStyle = '#e0362c';
+    ctx.fillText('AI ROAST MY GITHUB', PAD, y);
+    y += 56;
+    ctx.font = F(46, true);
+    ctx.fillStyle = '#14110f';
+    ctx.fillText(R.name + "'s GitHub Report", PAD, y, CW);
+    y += 74;
+    ctx.font = F(24);
+    ctx.fillStyle = '#8b837a';
+    ctx.fillText('@' + R.login + '  ·  ' + R.pool.length + ' 个原创仓库  ·  ' + R.totalStars + ' star  ·  ' + R.followers + ' 关注者', PAD, y);
+    y += 46;
+    ctx.strokeStyle = '#14110f'; ctx.lineWidth = 2;
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
+    ctx.setLineDash([]);
+    y += 40;
+
+    // 指标
+    const colorOf = v => v >= 75 ? '#1a9e4b' : v >= 45 ? '#e0932c' : '#e0362c';
+    METRIC_META.forEach(meta => {
+      const v = m[meta.key];
+      const g = barGlyph(v, 10);
+      ctx.font = F(28, true); ctx.fillStyle = '#14110f';
+      ctx.fillText(meta.name, PAD, y + 4);
+      ctx.font = MF(32);
+      ctx.fillStyle = colorOf(v);
+      ctx.fillText(g.fill + g.empty, PAD + 250, y);
+      ctx.font = MF(30);
+      ctx.fillStyle = colorOf(v);
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.round(v) + '%', W - PAD, y + 2);
+      ctx.textAlign = 'left';
+      y += 74;
+    });
+
+    // 最大问题
+    y += 26;
+    ctx.font = F(30, true); ctx.fillStyle = '#e0362c';
+    ctx.fillText('💀 你最大的代码问题', PAD, y);
+    y += 58;
+    ctx.font = F(32, true); ctx.fillStyle = '#14110f';
+    ctx.fillText(R.problem.t, PAD, y, CW);
+    y += 50;
+    ctx.font = F(28); ctx.fillStyle = '#4a443e';
+    problemLines.forEach(l => { ctx.fillText(l, PAD, y); y += 42; });
+
+    // 吐槽
+    y += 40;
+    ctx.font = F(30, true); ctx.fillStyle = '#e0362c';
+    ctx.fillText('更多吐槽', PAD, y);
+    y += 52;
+    roastLines.forEach((lines, i) => {
+      ctx.font = F(28); ctx.fillStyle = '#4a443e';
+      lines.forEach(l => { ctx.fillText(l, PAD, y); y += 42; });
+      if (nukeLines[i].length){
+        ctx.font = F(26, true); ctx.fillStyle = '#e0362c';
+        nukeLines[i].forEach(l => { ctx.fillText(l, PAD + 22, y); y += 40; });
+      }
+      y += 16;
+    });
+
+    // 人格
+    y += 30;
+    ctx.font = F(30, true); ctx.fillStyle = '#e0362c';
+    ctx.fillText('🧬 你的程序员人格', PAD, y);
+    y += 54;
+    const rectTop = y - 20;
+    ctx.fillStyle = '#14110f';
+    ctx.fillRect(PAD - 26, rectTop, W - (PAD - 26) * 2, PERSONA_H);
+    ctx.font = F(42, true); ctx.fillStyle = '#ffffff';
+    ctx.fillText(p.emoji + ' ' + p.name, PAD, y, CW);
+    y += 62;
+    ctx.font = F(26); ctx.fillStyle = '#c9c3ba';
+    ctx.fillText('“' + p.tag + '”', PAD, y, CW);
+    y += 50;
+    ctx.font = F(26, true); ctx.fillStyle = '#7ee2a1';
+    ctx.fillText('Strength', PAD, y);
+    ctx.fillStyle = '#ff8a80';
+    ctx.fillText('Weakness', PAD + 470, y);
+    y += 38;
+    ctx.font = F(24); ctx.fillStyle = '#ded8d0';
+    const maxRows = Math.max(p.s.length, p.w.length);
+    for (let i = 0; i < maxRows; i++){
+      if (p.s[i]) ctx.fillText('· ' + p.s[i], PAD, y, 440);
+      if (p.w[i]) ctx.fillText('· ' + p.w[i], PAD + 470, y, 440);
+      y += 38;
+    }
+
+    // 页脚（画在人格卡之外，避免灰字压在黑底上）
+    y = rectTop + PERSONA_H + 34;
+    ctx.font = F(22); ctx.fillStyle = '#8b837a';
+    ctx.fillText('AI Roast My GitHub · 数据来自 GitHub 公开 API · ' + fmtDate(new Date().toISOString()), PAD, y);
+
+    return cv;
+}
+
+function downloadImage(R){
+  try {
+    const cv = buildShareCanvas(R);
+    cv.toBlob(blob => {
+      if (!blob){ toast('图片生成失败'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'github-roast-' + R.login + '.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast('分享图已下载');
+    }, 'image/png');
+  } catch(e){
+    console.error(e);
+    toast('图片生成失败：' + e.message);
+  }
+}
+
+/* ---------- 7. 状态与流程 ---------- */
+const state = { level: 'spicy', last: null };
+const LOADING_MSGS = [
+  '正在连接 GitHub…',
+  '正在扒你的提交记录…',
+  '正在数你有几个坑没填…',
+  '正在评估 README 的含 AI 量…',
+  '正在计算你的热情衰减曲线…',
+  '正在准备一些不太好听的话…'
+];
+
+function setLevel(lv){
+  state.level = lv;
+  Array.from($('#level').children).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.level === lv)));
+  localStorage.setItem('roast_level', lv);
+  if (state.last){
+    buildNarrative(state.last);
+    renderReport(state.last);
+  }
+}
+
+function showError(html){ const e = $('#error'); e.innerHTML = html; e.classList.remove('hidden'); }
+function hideError(){ $('#error').classList.add('hidden'); }
+
+async function run(username){
+  username = (username || '').trim().replace(/^https?:\/\/(www\.)?github\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, '');
+  if (!username){ showError('<h3>先输入一个用户名</h3><p>比如 <code>torvalds</code> 或者你自己的。</p>'); return; }
+
+  hideError();
+  $('#report').classList.add('hidden');
+  $('#loading').classList.remove('hidden');
+  $('#go').disabled = true;
+
+  let i = 0;
+  $('#loadingText').textContent = LOADING_MSGS[0];
+  const timer = setInterval(() => {
+    i = (i + 1) % LOADING_MSGS.length;
+    $('#loadingText').textContent = LOADING_MSGS[i];
+    $('#loadingBar i').style.width = Math.min(92, (i + 1) * 15) + '%';
+  }, 1100);
+
+  try {
+    const raw = await collect(username);
+    $('#loadingBar i').style.width = '100%';
+    $('#loadingText').textContent = '正在生成不太礼貌的结论…';
+    await sleep(320);
+    const R = analyze(raw);
+    state.last = R;
+    renderReport(R);
+    saveHistory(R.login);
+    const url = new URL(location.href);
+    url.searchParams.set('u', R.login);
+    history.replaceState(null, '', url.toString());
+  } catch(err){
+    let html = '';
+    if (err.status === 404){
+      html = '<h3>查无此人</h3><p>GitHub 上找不到 <code>' + esc(username) + '</code>。检查一下拼写？</p>';
+    } else if (err.status === 403 || err.status === 429 || err.remaining === 0){
+      const reset = err.reset ? new Date(err.reset * 1000).toLocaleTimeString('zh-CN') : '稍后';
+      html = '<h3>API 配额用完了</h3><p>GitHub 对匿名请求限制 60 次/小时，当前已用完。</p>' +
+             '<p>重置时间：<code>' + esc(reset) + '</code>。或者展开上面的「API 配额不够用」填一个 Token，立刻恢复 5000 次/小时。</p>';
+    } else if (err.status === 451){
+      html = '<h3>GitHub 拒绝了这个请求</h3><p>可能是网络环境问题，换个网络再试。</p>';
+    } else {
+      html = '<h3>出错了</h3><p>' + esc(err.message) + '</p><p>检查一下网络连接，然后重试。</p>';
+    }
+    showError(html);
+  } finally {
+    clearInterval(timer);
+    $('#loading').classList.add('hidden');
+    $('#go').disabled = false;
+  }
+}
+
+/* ---------- 8. 历史记录 & 示例 ---------- */
+function saveHistory(login){
+  let h = [];
+  try { h = JSON.parse(localStorage.getItem('roast_history') || '[]'); } catch(e){}
+  h = [login].concat(h.filter(x => x !== login)).slice(0, 5);
+  localStorage.setItem('roast_history', JSON.stringify(h));
+  renderChips();
+}
+function renderChips(){
+  let h = [];
+  try { h = JSON.parse(localStorage.getItem('roast_history') || '[]'); } catch(e){}
+  const examples = ['torvalds', 'sindresorhus', 'gaearon'];
+  const items = h.length ? h : examples;
+  const title = h.length ? '最近：' : '试试：';
+  $('#chips').innerHTML = '<span class="label" style="align-self:center">' + title + '</span>' +
+    items.map(u => '<span class="chip" data-u="' + esc(u) + '">' + esc(u) + '</span>').join('');
+  Array.from(document.querySelectorAll('.chip')).forEach(c => {
+    c.addEventListener('click', () => { $('#username').value = c.dataset.u; run(c.dataset.u); });
+  });
+}
+
+/* ---------- 9. 初始化 ---------- */
+(function init(){
+  const savedLevel = localStorage.getItem('roast_level');
+  if (savedLevel && LEVEL_NAME[savedLevel]) setLevel(savedLevel); else setLevel('spicy');
+
+  $('#token').value = TOKEN;
+  $('#token').addEventListener('change', e => {
+    TOKEN = e.target.value.trim();
+    if (TOKEN) localStorage.setItem('roast_token', TOKEN);
+    else localStorage.removeItem('roast_token');
+    toast(TOKEN ? 'Token 已保存到本地' : '已清除 Token');
+  });
+
+  Array.from($('#level').children).forEach(b => b.addEventListener('click', () => setLevel(b.dataset.level)));
+
+  $('#form').addEventListener('submit', e => {
+    e.preventDefault();
+    run($('#username').value);
+  });
+
+  renderChips();
+  drawRate();
+
+  const u = new URL(location.href).searchParams.get('u');
+  if (u){ $('#username').value = u; run(u); }
+})();
+</script>
+</body>
+</html>

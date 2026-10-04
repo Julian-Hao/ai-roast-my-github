@@ -1,0 +1,4 @@
+# macOS 在 exFAT/FAT 卷上自动生成的 AppleDouble 附属文件
+._*
+.DS_Store
+*.tmp
